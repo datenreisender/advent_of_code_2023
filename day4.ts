@@ -4,7 +4,7 @@ import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals,
 // prettier-ignore
 import { expect, describe, test, xtest, TODO, inputContent, inputContentLines, inputContentChars, lines, chars } from './setup' // eslint-disable-line no-unused-vars
 
-const cardValue = (card: string) => {
+const winCount = (card: string) => {
   const [, winningNumbersSpec, ownNumbersSpec] = card.match(
     /Card +\d+: +(.*?) \| +(.*)/
   )
@@ -12,12 +12,11 @@ const cardValue = (card: string) => {
   const winningNumbers = winningNumbersSpec.split(/ +/).map(Number)
   const ownNumbers = ownNumbersSpec.split(/ +/).map(Number)
 
-  const winCount = intersection(winningNumbers, ownNumbers).length
-
-  const result = winCount === 0 ? 0 : 2 ** (winCount - 1)
-
-  return result
+  return intersection(winningNumbers, ownNumbers).length
 }
+
+const cardValue = (card: string) =>
+  winCount(card) === 0 ? 0 : 2 ** (winCount(card) - 1)
 
 const part1 = (cards: string[]) => sum(cards.map(cardValue))
 
@@ -34,8 +33,24 @@ test('acceptance of part 1', () => {
   expect(part1(inputContentLines(testInput))).toEqual(13)
 })
 
+const part2 = (cards: string[]) => {
+  const copies = new Array(cards.length).fill(1)
+
+  cards.forEach((card, index) => {
+    for (let i = winCount(card); i > 0; i--) {
+      copies[index + i] += copies[index]
+    }
+  })
+
+  return sum(copies)
+}
+
+test('acceptance of part 2', () => {
+  expect(part2(inputContentLines(testInput))).toEqual(30)
+})
+
 if (process.env.NODE_ENV !== 'test') {
   const input = inputContentLines()
   console.log('Part 1: ' + part1(input))
-  // console.log('Part 2: ' + part2(input))
+  console.log('Part 2: ' + part2(input))
 }
