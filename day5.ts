@@ -4,13 +4,14 @@ import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals,
 // prettier-ignore
 import { expect, describe, test, xtest, TODO, inputContent, inputContentLines, inputContentChars, lines, chars } from './setup' // eslint-disable-line no-unused-vars
 
-const part1 = (input: string) => {
-  const seeds = input
+const parseSeeds = (input: string) =>
+  input
     .match(/seeds: ([\d ]+)/)[1]
     .split(' ')
     .map(Number)
 
-  const mappings = Object.fromEntries(
+const parseMappings = (input: string) =>
+  Object.fromEntries(
     [...input.matchAll(/(\w+)-to-(\w+) map:([\d\s]+)/gm)].map(
       ([, from, to, mapSpec]) => [
         from,
@@ -38,31 +39,57 @@ const part1 = (input: string) => {
     )
   )
 
-  const seedLocations = seeds.map(seed => {
-    let currentType = 'seed'
-    let currentValue = seed
+const seedLocation = (
+  seed: number,
+  mappings: ReturnType<typeof parseMappings>
+) => {
+  let currentType = 'seed'
+  let currentValue = seed
 
-    do {
-      const mapping = mappings[currentType]
-      currentType = mapping.to
-      let foundMapping = false
+  do {
+    const mapping = mappings[currentType]
+    currentType = mapping.to
+    let foundMapping = false
 
-      Object.values(mapping.mapSpec).forEach(({ fromRange, toRange }) => {
-        if (
-          !foundMapping &&
-          fromRange.start <= currentValue &&
-          currentValue <= fromRange.end
-        ) {
-          currentValue = toRange.start + (currentValue - fromRange.start)
-          foundMapping = true
-        }
-      })
-    } while (currentType !== 'location')
+    Object.values(mapping.mapSpec).forEach(({ fromRange, toRange }) => {
+      if (
+        !foundMapping &&
+        fromRange.start <= currentValue &&
+        currentValue <= fromRange.end
+      ) {
+        currentValue = toRange.start + (currentValue - fromRange.start)
+        foundMapping = true
+      }
+    })
+  } while (currentType !== 'location')
 
-    return currentValue
-  })
+  return currentValue
+}
+
+const part1 = (input: string) => {
+  const seeds = parseSeeds(input)
+  const mappings = parseMappings(input)
+
+  const seedLocations = seeds.map(seed => seedLocation(seed, mappings))
 
   return Math.min(...seedLocations)
+}
+
+const part2 = (input: string) => {
+  const seeds = parseSeeds(input)
+  const mappings = parseMappings(input)
+
+  let currentMin = Number.MAX_SAFE_INTEGER
+  for (let i = 0; i < seeds.length; i += 2) {
+    const seedStart = seeds[i]
+    const seedEnd = seeds[i] + seeds[i + 1] - 1
+    console.log(seedStart, seedEnd)
+    for (let seed = seedStart; seed <= seedEnd; seed += 1) {
+      currentMin = Math.min(currentMin, seedLocation(seed, mappings))
+    }
+  }
+
+  return currentMin
 }
 
 const testInput = `
@@ -105,8 +132,12 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(35)
 })
 
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(46)
+})
+
 if (process.env.NODE_ENV !== 'test') {
   const input = inputContent()
   console.log('Part 1: ' + part1(input))
-  // console.log('Part 2: ' + part2(input))
+  console.log('Part 2: ' + part2(input))
 }
