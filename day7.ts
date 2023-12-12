@@ -14,6 +14,34 @@ enum Type {
   FIVE_OF_A_KIND
 }
 
+const detectTypeWithJokers = (groupedCards: string[][]) => {
+  const jokerCount = (groupedCards.filter(cards => cards[0] === 'J')[0] ?? [])
+    .length
+  const withoutJokers = groupedCards.filter(cards => cards[0] !== 'J')
+  const twoPairs =
+    withoutJokers.filter(cards => cards.length === 2).length === 2
+
+  switch (true) {
+    case jokerCount === 5 ||
+      withoutJokers.some(cards => cards.length === 5 - jokerCount):
+      return Type.FIVE_OF_A_KIND
+    case withoutJokers.some(cards => cards.length === 4 - jokerCount):
+      return Type.FOUR_OF_A_KIND
+    case (withoutJokers.some(cards => cards.length === 3) &&
+      withoutJokers.some(cards => cards.length === 2)) ||
+      (jokerCount === 1 && twoPairs):
+      return Type.FULL_HOUSE
+    case withoutJokers.some(cards => cards.length === 3 - jokerCount):
+      return Type.THREE_OF_A_KIND
+    case twoPairs:
+      return Type.TWO_PAIRS
+    case withoutJokers.some(cards => cards.length === 2 - jokerCount):
+      return Type.ONE_PAIR
+    default:
+      return Type.HIGH_CARD
+  }
+}
+
 const detectType = (groupedCards: string[][]) => {
   switch (true) {
     case groupedCards.some(cards => cards.length === 5):
@@ -34,19 +62,21 @@ const detectType = (groupedCards: string[][]) => {
   }
 }
 
-type CategorisedHand = ReturnType<typeof categorise>
-const categorise = (line: string) => {
+type CategorisedHand = ReturnType<ReturnType<typeof categorise>>
+const categorise = (withJokers: boolean) => (line: string) => {
   const [hand, bid] = line.split(' ')
   const groupedCards = groupWith<string>(equals, hand.split('').sort())
 
   return {
-    type: detectType(groupedCards),
+    type: withJokers
+      ? detectTypeWithJokers(groupedCards)
+      : detectType(groupedCards),
     hand,
     bid: Number(bid)
   }
 }
 
-const valueOf = (card: string) => {
+const valueOf = (card: string, withJokers: boolean) => {
   switch (card) {
     case 'A':
       return 14
@@ -55,7 +85,7 @@ const valueOf = (card: string) => {
     case 'Q':
       return 12
     case 'J':
-      return 11
+      return withJokers ? 1 : 11
     case 'T':
       return 10
     default:
@@ -63,19 +93,23 @@ const valueOf = (card: string) => {
   }
 }
 
-const byCards = (handA: string, handB: string) => {
+const byCards = (handA: string, handB: string, withJokers: boolean) => {
   const [a, b] = zip(handA.split(''), handB.split('')).find(([a, b]) => a !== b)
-  return valueOf(a) - valueOf(b)
+  return valueOf(a, withJokers) - valueOf(b, withJokers)
 }
 
-const byValue = (a: CategorisedHand, b: CategorisedHand) =>
-  a.type !== b.type ? a.type - b.type : byCards(a.hand, b.hand)
+const byValue =
+  (withJokers: boolean) => (a: CategorisedHand, b: CategorisedHand) =>
+    a.type !== b.type ? a.type - b.type : byCards(a.hand, b.hand, withJokers)
 
 const toAmount = (hand: CategorisedHand, index: number) =>
   hand.bid * (index + 1)
 
-const part1 = (input: string[]) =>
-  sum(input.map(categorise).sort(byValue).map(toAmount))
+const compute = (input: string[], withJokers = false) =>
+  sum(input.map(categorise(withJokers)).sort(byValue(withJokers)).map(toAmount))
+
+const part1 = (input: string[]) => compute(input)
+const part2 = (input: string[]) => compute(input, true)
 
 const testInput = `
 32T3K 765
@@ -89,8 +123,12 @@ test('acceptance of part 1', () => {
   expect(part1(inputContentLines(testInput))).toEqual(6440)
 })
 
+test('acceptance of part 2', () => {
+  expect(part2(inputContentLines(testInput))).toEqual(5905)
+})
+
 if (process.env.NODE_ENV !== 'test') {
   const input = inputContentLines()
   console.log('Part 1: ' + part1(input))
-  // console.log('Part 2: ' + part2(input))
+  console.log('Part 2: ' + part2(input))
 }
