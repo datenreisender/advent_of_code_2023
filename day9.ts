@@ -18,7 +18,25 @@ const prediction = (line: string) => {
   return sum
 }
 
+const history = (line: string) => {
+  const current = line.split(' ').map(Number)
+
+  let result = 0
+  let sign = 1
+
+  while (current.some(x => x !== 0) && current.length > 1) {
+    for (let i = current.length - 1; i > 0; i--) {
+      current[i] = current[i] - current[i - 1]
+    }
+    result += current.shift() * sign
+    sign *= -1
+  }
+
+  return result
+}
+
 const part1 = (input?: string) => sum(inputContentLines(input).map(prediction))
+const part2 = (input?: string) => sum(inputContentLines(input).map(history))
 
 const testInput = `
 0 3 6 9 12 15
@@ -30,7 +48,11 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(114)
 })
 
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(2)
+})
+
 if (process.env.NODE_ENV !== 'test') {
   console.log('Part 1: ' + part1())
-  // console.log('Part 2: ' + part2())
+  console.log('Part 2: ' + part2())
 }
