@@ -4,12 +4,23 @@ import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals,
 // prettier-ignore
 import { expect, describe, test, xtest, TODO, inputContent, inputContentLines, inputContentChars, lines, chars } from './setup' // eslint-disable-line no-unused-vars
 
-const part1 = TODO;
+const part1 = (input?: string) => {
+  const parsed = inputContentLines(input)
+  // TODO
+}
 
-test('acceptance of part 1', () => {});
+const testInput = `
+`
+
+test('acceptance of part 1', () => {
+  expect(part1(testInput)).toEqual(TODO)
+})
+
+// test('acceptance of part 2', () => {
+//   expect(part2(testInput)).toEqual(TODO)
+// })
 
 if (process.env.NODE_ENV !== 'test') {
-  const input = 'XXX'; // or inputContent() or inputContentLines() or inputContentChars()
-  console.log('Part 1: ' + part1(input));
-  // console.log('Part 2: ' + part2(input))
+  console.log('Part 1: ' + part1())
+  // console.log('Part 2: ' + part2())
 }
