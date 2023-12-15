@@ -22,27 +22,35 @@ const findStars = (
   maxCol: field[0].length
 })
 
-const correctByExpansion = ({
-  stars,
-  maxRow,
-  maxCol
-}: {
-  stars: Star[]
-  maxRow: number
-  maxCol: number
-}): Star[] => {
-  const emptyRows = range(0, maxRow).filter(row =>
-    stars.every(star => row !== star.row)
-  )
-  const emptyCols = range(0, maxCol).filter(col =>
-    stars.every(star => col !== star.col)
-  )
+const correctByExpansion =
+  (expansionFactor: number) =>
+  ({
+    stars,
+    maxRow,
+    maxCol
+  }: {
+    stars: Star[]
+    maxRow: number
+    maxCol: number
+  }): Star[] => {
+    const emptyRows = range(0, maxRow).filter(row =>
+      stars.every(star => row !== star.row)
+    )
+    const emptyCols = range(0, maxCol).filter(col =>
+      stars.every(star => col !== star.col)
+    )
 
-  return stars.map(star => ({
-    row: star.row + emptyRows.filter(emptyRow => emptyRow < star.row).length,
-    col: star.col + emptyCols.filter(emptyCol => emptyCol < star.col).length
-  }))
-}
+    return stars.map(star => ({
+      row:
+        star.row +
+        emptyRows.filter(emptyRow => emptyRow < star.row).length *
+          expansionFactor,
+      col:
+        star.col +
+        emptyCols.filter(emptyCol => emptyCol < star.col).length *
+          expansionFactor
+    }))
+  }
 
 const sumDistances = (stars: Star[]): number => {
   let sum = 0
@@ -56,8 +64,12 @@ const sumDistances = (stars: Star[]): number => {
   return sum
 }
 
-const part1 = (input?: string) =>
-  pipe(findStars, correctByExpansion, sumDistances)(inputContentLines(input))
+const part1 = (expansionFactor: number, input?: string) =>
+  pipe(
+    findStars,
+    correctByExpansion(expansionFactor),
+    sumDistances
+  )(inputContentLines(input))
 const testInput = `
 ...#......
 .......#..
@@ -71,10 +83,15 @@ const testInput = `
 #...#.....`
 
 test('acceptance of part 1', () => {
-  expect(part1(testInput)).toEqual(374)
+  expect(part1(1, testInput)).toEqual(374)
+})
+
+test('acceptance of part 2', () => {
+  expect(part1(10 - 1, testInput)).toEqual(1030)
+  expect(part1(100 - 1, testInput)).toEqual(8410)
 })
 
 if (process.env.NODE_ENV !== 'test') {
-  console.log('Part 1: ' + part1())
-  // console.log('Part 2: ' + part2(input))
+  console.log('Part 1: ' + part1(1))
+  console.log('Part 2: ' + part1(1000000 - 1))
 }
