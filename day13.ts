@@ -4,26 +4,58 @@ import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals,
 // prettier-ignore
 import { expect, describe, test, xtest, TODO, inputContent, inputContentLines, inputContentChars, lines, chars, paragraphs } from './setup' // eslint-disable-line no-unused-vars
 
-const isReflectionAfter = (rows: string[]) => (row: number) =>
+const isReflectionAfter = (rows: string[][]) => (row: number) =>
   range(0, row).every(
     index =>
-      rows[row - index - 1] === rows[row + index] || row + index >= rows.length
+      equals(rows[row - index - 1], rows[row + index]) ||
+      row + index >= rows.length
   )
 
-const findReflection = (rows: string[]) =>
-  range(1, rows.length).find(isReflectionAfter(rows))
+const findReflection = (rows: string[][], factor = 1, rowToSkip?: number) => {
+  const result = range(1, rows.length)
+    .filter(complement(equals(rowToSkip)))
+    .find(isReflectionAfter(rows))
 
-const cols = (rows: string[]) =>
-  range(0, rows[0].length).map(index => rows.map(prop(index)).join(''))
-const reflectingCol = (rows: string[]) => findReflection(cols(rows))
+  return result == null ? undefined : result * factor
+}
 
-const reflectingRow = (rows: string[]) => findReflection(rows) * 100
+const cols = (rows: string[][]) =>
+  range(0, rows[0].length).map(index => rows.map(prop(index)))
 
-const reflectionLine = (rows: string[]) =>
-  reflectingCol(rows) ?? reflectingRow(rows)
+const reflectionLine = (rows: string[][]) =>
+  findReflection(cols(rows)) ?? findReflection(rows, 100)
 
-const part1 = (input = inputContent()) =>
-  pipe(paragraphs, map(lines), map(reflectionLine), sum)(input)
+const part = (input: string, getReflectionLine: typeof reflectionLine) =>
+  pipe(
+    paragraphs,
+    map(lines),
+    map(map(split(''))),
+    map(getReflectionLine),
+    sum
+  )(input)
+
+const part1 = (input = inputContent()) => part(input, reflectionLine)
+
+const findReflectionWithFlip = (rows: string[][], factor = 1) => {
+  const origReflection = findReflection(rows)
+
+  for (let row = 0; row < rows.length; row++) {
+    for (let col = 0; col < rows[0].length; col++) {
+      const cloned = clone(rows)
+      cloned[row][col] = cloned[row][col] === '.' ? '#' : '.'
+
+      const newReflection = findReflection(cloned, factor, origReflection)
+
+      if (newReflection != null) return newReflection
+    }
+  }
+}
+
+const reflectionLineAfterFlip = (rows: string[][]) => {
+  return findReflectionWithFlip(cols(rows)) ?? findReflectionWithFlip(rows, 100)
+}
+
+const part2 = (input = inputContent()) => part(input, reflectionLineAfterFlip)
 
 const testInput = `
 #.##..##.
@@ -46,11 +78,11 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(405)
 })
 
-// test('acceptance of part 2', () => {
-//   expect(part2(testInput)).toEqual(TODO)
-// })
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(400)
+})
 
 if (process.env.NODE_ENV !== 'test') {
   console.log('Part 1: ' + part1())
-  // console.log('Part 2: ' + part2())
+  console.log('Part 2: ' + part2())
 }
