@@ -14,6 +14,7 @@ const readFile = (name: string): string =>
   require('fs').readFileSync(name, { encoding: 'utf8' })
 
 const lineIsNotEmpty = (line: string) => line.length !== 0
+export const paragraphs = (input: string) => input.trim().split('\n\n')
 export const lines = (input: string) =>
   input.trim().split('\n').filter(lineIsNotEmpty)
 export const chars = (input: any) => lines(input).map(split(''))
