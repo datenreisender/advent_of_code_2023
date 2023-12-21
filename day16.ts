@@ -15,26 +15,17 @@ const print = energized =>
       .join('\n')
   )
 
-const part1 = (input?: string) => {
-  const field = inputContentLines(input).map(split(''))
-  const energized: string[][][] = Array(field.length)
-    .fill(null)
-    .map(() =>
-      Array(field[0].length)
-        .fill(null)
-        .map(() => [])
-    )
+const solve = (
+  field: string[][],
+  startBeam: { x: number; y: number; dir: { x: number; y: number } }
+) => {
+  const height = field.length
+  const width = field[0].length
 
-  const beams = [
-    {
-      x: 0,
-      y: 0,
-      dir: {
-        x: 1,
-        y: 0
-      }
-    }
-  ]
+  const emptyRow = range(0, height).map((): string[] => [])
+  const energized = range(0, width).map(() => clone(emptyRow))
+
+  const beams = [startBeam]
 
   while (beams.length > 0) {
     const beam = beams[0]
@@ -83,6 +74,29 @@ const part1 = (input?: string) => {
   return energized.flatMap(row => row.filter(cell => cell.length > 0)).length
 }
 
+const part1 = (input?: string) => {
+  const field = inputContentLines(input).map(split(''))
+
+  return solve(field, { x: 0, y: 0, dir: { x: 1, y: 0 } })
+}
+
+const part2 = (input?: string) => {
+  const field = inputContentLines(input).map(split(''))
+  const height = field.length
+  const width = field[0].length
+
+  return Math.max(
+    ...range(0, width).flatMap(col => [
+      solve(field, { x: col, y: 0, dir: { x: 0, y: 1 } }),
+      solve(field, { x: col, y: height - 1, dir: { x: 0, y: -1 } })
+    ]),
+    ...range(0, height).flatMap(row => [
+      solve(field, { y: row, x: 0, dir: { x: 1, y: 0 } }),
+      solve(field, { y: row, x: width - 1, dir: { x: -1, y: 0 } })
+    ])
+  )
+}
+
 const testInput = `
 .|...\\....
 |.-.\\.....
@@ -99,11 +113,11 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(46)
 })
 
-// test('acceptance of part 2', () => {
-//   expect(part2(testInput)).toEqual(TODO)
-// })
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(51)
+})
 
 if (process.env.NODE_ENV !== 'test') {
   console.log('Part 1: ' + part1())
-  // console.log('Part 2: ' + part2())
+  console.log('Part 2: ' + part2())
 }
