@@ -83,7 +83,6 @@ const part2 = (input: string) => {
   for (let i = 0; i < seeds.length; i += 2) {
     const seedStart = seeds[i]
     const seedEnd = seeds[i] + seeds[i + 1] - 1
-    console.log(seedStart, seedEnd)
     for (let seed = seedStart; seed <= seedEnd; seed += 1) {
       currentMin = Math.min(currentMin, seedLocation(seed, mappings))
     }
