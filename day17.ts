@@ -15,7 +15,7 @@ type Attempt = {
   totalHeatloss: number
 }
 
-const part1 = (input?: string) => {
+const parse = (input?: string) => {
   const field = inputContentLines(input).map(
     pipe(
       split(''),
@@ -30,6 +30,12 @@ const part1 = (input?: string) => {
   )
   const maxRow = field.length - 1
   const maxCol = field[0].length - 1
+
+  return { field, maxRow, maxCol }
+}
+
+const part1 = (input?: string) => {
+  const { field, maxRow, maxCol } = parse(input)
 
   const possibleMoves = {
     '<': {
@@ -158,6 +164,207 @@ const part1 = (input?: string) => {
   return field[maxRow][maxCol].best.totalHeatloss
 }
 
+const part2 = (input?: string) => {
+  const { field, maxRow, maxCol } = parse(input)
+
+  const possibleInitialMoves = {
+    '<': {
+      pathToAdd: '<<<<',
+      rowDiff: 0,
+      colDiff: -1,
+      counter: '>',
+      isNotValid: ({ col }: Location) => col < 4
+    },
+    '>': {
+      pathToAdd: '>>>>',
+      rowDiff: 0,
+      colDiff: 1,
+      counter: '<',
+      isNotValid: ({ col }: Location) => col > maxCol - 4
+    },
+    v: {
+      pathToAdd: 'vvvv',
+      rowDiff: 1,
+      colDiff: 0,
+      counter: '^',
+      isNotValid: ({ row }: Location) => row > maxRow - 4
+    },
+    '^': {
+      pathToAdd: '^^^^',
+      rowDiff: -1,
+      colDiff: 0,
+      counter: 'v',
+      isNotValid: ({ row }: Location) => row < 4
+    }
+  }
+  const possibleContinuingMoves = {
+    '<': {
+      rowDiff: 0,
+      colDiff: -1,
+      isNotValid: ({ col }: Location) => col === 0
+    },
+    '>': {
+      rowDiff: 0,
+      colDiff: 1,
+      isNotValid: ({ col }: Location) => col === maxCol
+    },
+    v: {
+      rowDiff: 1,
+      colDiff: 0,
+      isNotValid: ({ row }: Location) => row === maxRow
+    },
+    '^': {
+      rowDiff: -1,
+      colDiff: 0,
+      isNotValid: ({ row }: Location) => row === 0
+    }
+  }
+
+  field[0][0].best = { totalHeatloss: 0, path: '' }
+
+  const calcNextAttempts = attempt => {
+    const newAttempts = [
+      ...Object.entries(possibleInitialMoves).map(
+        ([pathChar, { rowDiff, colDiff, isNotValid, counter, pathToAdd }]) => {
+          if (
+            isNotValid(attempt.loc) ||
+            attempt.path.endsWith(counter) ||
+            attempt.path.endsWith(pathChar)
+          )
+            return
+
+          return {
+            path: attempt.path + pathToAdd,
+            loc: {
+              row: attempt.loc.row + 4 * rowDiff,
+              col: attempt.loc.col + 4 * colDiff
+            },
+            totalHeatloss:
+              attempt.totalHeatloss +
+              field[attempt.loc.row + 1 * rowDiff][
+                attempt.loc.col + 1 * colDiff
+              ].heatloss +
+              field[attempt.loc.row + 2 * rowDiff][
+                attempt.loc.col + 2 * colDiff
+              ].heatloss +
+              field[attempt.loc.row + 3 * rowDiff][
+                attempt.loc.col + 3 * colDiff
+              ].heatloss +
+              field[attempt.loc.row + 4 * rowDiff][
+                attempt.loc.col + 4 * colDiff
+              ].heatloss
+          }
+        }
+      ),
+      ...Object.entries(possibleContinuingMoves).map(
+        ([pathChar, { rowDiff, colDiff, isNotValid }]) => {
+          if (
+            isNotValid(attempt.loc) ||
+            !attempt.path.endsWith(pathChar) ||
+            attempt.path.endsWith(
+              pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar +
+                pathChar
+            )
+          )
+            return
+
+          const row = attempt.loc.row + rowDiff
+          const col = attempt.loc.col + colDiff
+          return {
+            path: attempt.path + pathChar,
+            loc: { row, col },
+            totalHeatloss: attempt.totalHeatloss + field[row][col].heatloss
+          }
+        }
+      )
+    ].filter(Boolean)
+
+    newAttempts
+      .map(({ loc: { row, col }, totalHeatloss, path }) => {
+        const current = field[row][col]
+        if (current.best.totalHeatloss > totalHeatloss) {
+          current.best = { totalHeatloss, path }
+        }
+      })
+      .filter(Boolean)
+
+    return newAttempts
+  }
+
+  let attempts: Attempt[] = calcNextAttempts({
+    path: '',
+    loc: { row: 0, col: 0 },
+    totalHeatloss: 0
+  })
+
+  let steps = 0
+  do {
+    attempts = attempts.flatMap(calcNextAttempts)
+
+    const pathsToRemove = []
+    Object.values(
+      groupBy(
+        ({ loc: { col, row }, totalHeatloss }) =>
+          row + '/' + col + '_' + totalHeatloss,
+        attempts
+      )
+    ).flatMap(attemptsWithSameLoc => {
+      const allDirections = Object.keys(possibleInitialMoves)
+      allDirections.forEach(dir => {
+        const lengthsOfDirAtEnd = attemptsWithSameLoc
+          .filter(({ path }) => path.endsWith(dir))
+          .map(
+            ({ path }) =>
+              path.match(RegExp(dir.replace('^', '\\^') + '+$'))[0].length
+          )
+        if (lengthsOfDirAtEnd.length > 1) {
+          const oneGoodAttempt = attemptsWithSameLoc.find(({ path }) =>
+            path.match(
+              RegExp(
+                '(^|[^' +
+                  dir +
+                  '])' +
+                  dir.replace('^', '\\^') +
+                  '{' +
+                  Math.min(...lengthsOfDirAtEnd) +
+                  '}$'
+              )
+            )
+          )
+
+          pathsToRemove.push(
+            ...attemptsWithSameLoc
+              .filter(
+                ({ path }) => path.endsWith(dir) && path !== oneGoodAttempt.path
+              )
+              .map(attempts => attempts.path)
+          )
+        }
+      })
+    })
+
+    attempts = attempts.filter(
+      ({ path, loc: { row, col }, totalHeatloss }) =>
+        (row < maxRow || col < maxCol) &&
+        totalHeatloss <= field[row][col].best.totalHeatloss + 9 &&
+        !pathsToRemove.includes(path)
+    )
+
+    // steps++
+    // console.log(steps, attempts.length)
+  } while (attempts.length > 0 && steps < 200)
+
+  return field[maxRow][maxCol].best.totalHeatloss
+}
+
 const testInput = `
 2413432311323
 3215453535623
@@ -177,12 +384,21 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(102)
 })
 
-// test('acceptance of part 2', () => {
-//   expect(part2(testInput)).toEqual(TODO)
-// })
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(94)
+
+  expect(
+    part2(`
+111111111111
+999999999991
+999999999991
+999999999991
+999999999991`)
+  ).toEqual(71)
+})
 
 if (process.env.NODE_ENV !== 'test') {
   //   console.log('Part 1: ' + part1(inputContent(process.argv[2])))
   console.log('Part 1: ' + part1())
-  //   console.log('Part 2: ' + part2())
+  console.log('Part 2: ' + part2())
 }
