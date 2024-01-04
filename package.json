@@ -16,5 +16,10 @@
     "scripts": {
         "test": "jest --watch $(ls -1 day1*.ts | tail -1)",
         "testAll": "jest ."
+    },
+    "prettier": {
+        "semi": false,
+        "singleQuote": true,
+        "arrowParens": "avoid"
     }
 }

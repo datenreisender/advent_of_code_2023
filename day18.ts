@@ -1,14 +1,11 @@
 /* eslint-env jest */
 // prettier-ignore
-import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals, sum, isEmpty, complement, propEq, either, times, propOr, __, pathOr, insert, repeat, zip, flatten, remove, over, add, lensIndex, scan, clone, dropLast, pipe, identity, evolve, subtract, concat, flip, replace, split, join, props, sortBy, forEach, last, map, path, pathEq, reject, compose, uniq, chain, sortWith, ascend, reverse, identical, filter, gt, curry, pluck, without, update, multiply, match, gte, keys, xprod, T, tap } from 'ramda' // eslint-disable-line no-unused-vars
+import { values, toPairs, splitEvery, range, reduce, maxBy, minBy, prop, equals, sum, isEmpty, complement, propEq, either, times, propOr, __, pathOr, insert, repeat, zip, flatten, remove, over, add, lensIndex, scan, clone, dropLast, pipe, identity, evolve, subtract, concat, flip, replace, split, join, props, sortBy, forEach, last, map, path, pathEq, reject, compose, uniq, chain, sortWith, ascend, reverse, identical, filter, gt, curry, pluck, without, update, multiply, match, gte, keys, xprod, T, tap, min, max, sort } from 'ramda' // eslint-disable-line no-unused-vars
 // prettier-ignore
 import { expect, describe, test, xtest, TODO, inputContent, inputContentLines, inputContentChars, lines, chars, emptyField, print } from './setup' // eslint-disable-line no-unused-vars
-import { terminal as term } from 'terminal-kit'
 
-type Tile = '#' | '.' | 'O'
-
-const allDirs = ['R', 'L', 'U', 'D'] as const
-type Dir = typeof allDirs[number]
+const allDirs = ['R', 'D', 'L', 'U'] as const
+type Dir = (typeof allDirs)[number]
 
 type Step = {
   dir: Dir
@@ -20,123 +17,163 @@ type Location = {
   col: number
 }
 
-const nextLoc =
-  ({ row, col }: Location) =>
-  (dir: Dir) => {
-    switch (dir) {
-      case 'R':
-        return { row, col: col + 1 }
-      case 'L':
-        return { row, col: col - 1 }
-      case 'D':
-        return { row: row + 1, col }
-      case 'U':
-        return { row: row - 1, col }
-    }
-  }
-
-const draw = (path: Step[]) => {
-  const dig = () => {
-    term.saveCursor()
-    term('#')
-    term.restoreCursor()
-  }
-
-  const move = {
-    R: term.right,
-    L: term.left,
-    U: term.up,
-    D: term.down
-  }
-
-  term.clear()
-
-  term.moveTo(term.width / 2, term.height / 2)
-  dig()
-  path.forEach(step =>
-    times(() => {
-      move[step.dir](1)
-      dig()
-    }, step.distance)
-  )
-
-  term.moveTo(1, term.height)
+type HorizontalTrench = {
+  row: number
+  cols: { from: number; to: number }
+  seperatesInAndOut: boolean
 }
 
-const findSize = (path: Step[]) => {
-  let here = { row: 0, col: 0 }
-  const min = { row: 0, col: 0 }
-  const max = { row: 0, col: 0 }
+type VerticalTrench = {
+  rows: { from: number; to: number }
+  col: number
+}
 
-  path.forEach(step => {
-    times(() => {
-      here = nextLoc(here)(step.dir)
-    }, step.distance)
+type Trench = HorizontalTrench | VerticalTrench
 
-    min.row = Math.min(min.row, here.row)
-    min.col = Math.min(min.col, here.col)
-    max.row = Math.max(max.row, here.row)
-    max.col = Math.max(max.col, here.col)
-  })
+const isHorizontal = (trench: Trench): trench is HorizontalTrench =>
+  trench != null && 'row' in trench
 
-  return {
-    maxRow: max.row - min.row,
-    maxCol: max.col - min.col,
-    start: { row: -min.row, col: -min.col }
+const nextLoc = ({ row, col }: Location, step: Step) => {
+  switch (step.dir) {
+    case 'R':
+      return { row, col: col + step.distance }
+    case 'L':
+      return { row, col: col - step.distance }
+    case 'D':
+      return { row: row + step.distance, col }
+    case 'U':
+      return { row: row - step.distance, col }
   }
 }
 
-const digPath = (field: Tile[][], path: Step[], start: Location) => {
-  let here = start
-  field[here.row][here.col] = '#'
-
-  path.forEach(step => {
-    times(() => {
-      here = nextLoc(here)(step.dir)
-      field[here.row][here.col] = '#'
-    }, step.distance)
-  })
-}
-
-const floodOutside = (field: Tile[][]) => {
-  const toFill = [
-    ...range(0, field.length).flatMap(row => [
-      { row, col: 0 },
-      { row, col: field[0].length - 1 }
-    ]),
-    ...range(0, field[0].length).flatMap(col => [
-      { row: 0, col },
-      { row: field.length - 1, col }
-    ])
-  ]
-
-  while (toFill.length > 0) {
-    const tile = toFill.pop()
-    if (field[tile.row]?.[tile.col] !== '.') continue
-
-    field[tile.row][tile.col] = 'O'
-    toFill.push(...allDirs.map(nextLoc(tile)))
-  }
-}
-
-const parse = (input?: string): Step[] =>
+const parse1 = (input?: string): Step[] =>
   inputContentLines(input).map(line => {
     const [, dir, distance] = line.match(/([RLDU]) (\d+)/)
 
     return { dir: dir as Dir, distance: Number(distance) }
   })
 
-const part1 = (input?: string) => {
-  const path = parse(input)
-  const { maxRow, maxCol, start } = findSize(path)
+const parse2 = (input?: string): Step[] =>
+  inputContentLines(input).map(line => {
+    const [, distance, dir] = line.match(/#(\w+)(\w)/)
 
-  const field = emptyField(maxRow + 1, maxCol + 1, '.' as Tile)
+    return { dir: allDirs[dir], distance: Number.parseInt(distance, 16) }
+  })
 
-  digPath(field, path, start)
-  floodOutside(field)
+const findTrenches = (path: Step[]) => {
+  let here = { row: 0, col: 0 }
 
-  return sum(field.map(row => row.filter(complement(equals('O'))).length))
+  return path.map((step, index) => {
+    const there = nextLoc(here, step)
+    let result: Trench
+    if (['L', 'R'].includes(step.dir)) {
+      // horizontal
+      result = {
+        row: here.row,
+        cols: { from: min(here.col, there.col), to: max(here.col, there.col) },
+        seperatesInAndOut:
+          path.at(index - 1).dir === path.at(index + (1 % path.length)).dir,
+      } as HorizontalTrench
+    } else {
+      // vertical
+      result = {
+        rows: { from: min(here.row, there.row), to: max(here.row, there.row) },
+        col: here.col,
+      } as VerticalTrench
+    }
+
+    here = there
+    return result
+  })
 }
+
+const includeNewRelevantTrenches = (
+  relevantTrenches: Trench[],
+  trenches: Trench[],
+  row: number
+) =>
+  sortBy(
+    trench => (isHorizontal(trench) ? trench.cols.from : trench.col),
+    [
+      ...relevantTrenches,
+      ...trenches.filter(
+        trench => row === (isHorizontal(trench) ? trench.row : trench.rows.from)
+      ),
+    ]
+  )
+
+const touchesHorizontal = (trench: VerticalTrench, trenches: Trench[]) =>
+  trenches.some(
+    other =>
+      isHorizontal(other) &&
+      (other.cols.from === trench.col || other.cols.to === trench.col)
+  )
+
+const dugInCurrentRow = (trenches: Trench[]) => {
+  let sum = 0
+  let currentlyInside = false
+
+  trenches
+    .filter(
+      trench => isHorizontal(trench) || !touchesHorizontal(trench, trenches)
+    )
+    .forEach((trench, index, allCurrentTrenches) => {
+      sum += isHorizontal(trench) ? trench.cols.to - trench.cols.from + 1 : 1
+
+      const switchesBetweenInAndOut =
+        !isHorizontal(trench) || trench.seperatesInAndOut
+      currentlyInside = currentlyInside !== switchesBetweenInAndOut
+
+      const nextTrench = allCurrentTrenches[index + 1]
+
+      if (currentlyInside && nextTrench != null) {
+        const from = isHorizontal(trench) ? trench.cols.to : trench.col
+        const to = isHorizontal(nextTrench)
+          ? nextTrench.cols.from
+          : nextTrench.col
+
+        sum += to - from - 1
+      }
+    })
+
+  return sum
+}
+
+const compute = (path: Step[]) => {
+  const trenches = findTrenches(path)
+  const rowsWithHorizontals = compose(
+    sort<number>(ascend(identity)),
+    uniq,
+    map(prop('row')),
+    filter<Trench>(isHorizontal)
+  )(trenches)
+
+  let sum = 0
+  let relevantTrenches: Trench[] = []
+
+  rowsWithHorizontals.forEach((row, index) => {
+    relevantTrenches = includeNewRelevantTrenches(
+      relevantTrenches,
+      trenches,
+      row
+    )
+
+    sum += dugInCurrentRow(relevantTrenches)
+
+    const nextRow = rowsWithHorizontals[index + 1]
+    if (nextRow != null) {
+      relevantTrenches = relevantTrenches.filter(
+        trench => !isHorizontal(trench) && trench.rows.to !== row
+      )
+      sum += dugInCurrentRow(relevantTrenches) * (nextRow - row - 1)
+    }
+  })
+
+  return sum
+}
+
+const part1 = (input?: string) => compute(parse1(input))
+const part2 = (input?: string) => compute(parse2(input))
 
 const testInput = `
 R 6 (#70c710)
@@ -158,12 +195,11 @@ test('acceptance of part 1', () => {
   expect(part1(testInput)).toEqual(62)
 })
 
-// test('acceptance of part 2', () => {
-//   expect(part2(testInput)).toEqual(TODO)
-// })
+test('acceptance of part 2', () => {
+  expect(part2(testInput)).toEqual(952408144115)
+})
 
 if (process.env.NODE_ENV !== 'test') {
-  // draw(parse(testInput))
   console.log('Part 1: ' + part1())
-  // console.log('Part 2: ' + part2())
+  console.log('Part 2: ' + part2())
 }
