@@ -1,4 +1,4 @@
-import { identity, split } from 'ramda'
+import { clone, identity, split, times } from 'ramda'
 
 const justDuringTest = <T>(valueWhenRunningAsTest: T) =>
   process.env.NODE_ENV === 'test' ? valueWhenRunningAsTest : () => {}
@@ -24,3 +24,15 @@ export const inputContent = (filename = baseFilename() + '-input') =>
   readFile(filename)
 export const inputContentLines = (text = inputContent()) => lines(text)
 export const inputContentChars = (text = inputContent()) => chars(text)
+
+export const emptyField = <T>(height: number, width: number, value?: T) => {
+  const emptyRow = times(() => value, width)
+  return times(() => clone(emptyRow), height)
+}
+
+export const print = (field: unknown[][], defaultTile = '·') =>
+  console.log(
+    field
+      .map(row => row.map(tile => (tile == null ? defaultTile : tile)).join(''))
+      .join('\n')
+  )
