@@ -1,4 +1,5 @@
 import { clone, identity, split, times } from 'ramda'
+import { inspect as nodeInspect } from 'node:util'
 
 const justDuringTest = <T>(valueWhenRunningAsTest: T) =>
   process.env.NODE_ENV === 'test' ? valueWhenRunningAsTest : () => {}
@@ -36,3 +37,7 @@ export const print = (field: unknown[][], defaultTile = '·') =>
       .map(row => row.map(tile => (tile == null ? defaultTile : tile)).join(''))
       .join('\n')
   )
+
+export const inspect = (value: unknown) => {
+  console.log(nodeInspect(value, { colors: true, depth: Infinity }))
+}
